@@ -1,0 +1,51 @@
+services:
+  videostreamsegmentschecker:
+    image: jpkitt/videostreamsegmentschecker:latest
+    environment:
+      - RABBITMQ_URL=${RABBITMQ_URL}
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_USERNAME=${POSTGRES_USERNAME}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    restart: unless-stopped
+    depends_on:
+      videostreamsegments:
+        condition: service_started
+  videostreamsegments:
+    image: jpkitt/videostreamsegments:latest
+    environment:
+      - RABBITMQ_URL=${RABBITMQ_URL}
+    restart: unless-stopped
+    depends_on:
+      rabbitmq:
+        condition: service_started
+  rabbitmq:
+    image: 'rabbitmq:3.6-management-alpine'
+    ports:
+      # The standard AMQP protocol port
+      - 5672:5672
+      # HTTP management UI
+      - 15672:15672
+    restart: unless-stopped
+  postgres:
+    image: postgres
+    environment:
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_USERNAME=${POSTGRES_USERNAME}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - postgres:/data/postgres
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+  admin:
+    image: adminer
+    depends_on:
+      - postgres
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+volumes:
+  postgres:
