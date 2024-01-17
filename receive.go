@@ -8,7 +8,7 @@ import (
 	"os"
 )
 
-func receiveStreamToCheck(requests chan Payload) {
+func receiveStreamToCheck(jobs chan Job, jobDone chan bool) {
 	conn, err := amqp.Dial(os.Getenv("RABBITMQ_URL"))
 	failOnError(err, "Failed to connect to RabbitMQ")
 	defer conn.Close()
@@ -18,12 +18,12 @@ func receiveStreamToCheck(requests chan Payload) {
 	defer ch.Close()
 
 	q, err := ch.QueueDeclare(
-		"q.segments.checker.request", // name
-		false,                        // durable
-		false,                        // delete when unused
-		false,                        // exclusive
-		false,                        // no-wait
-		nil,                          // arguments
+		"q.segments.check.in", // name
+		true,                  // durable
+		false,                 // delete when unused
+		false,                 // exclusive
+		false,                 // no-wait
+		nil,                   // arguments
 	)
 	failOnError(err, "Failed to declare a queue")
 
@@ -43,21 +43,23 @@ func receiveStreamToCheck(requests chan Payload) {
 	go func() {
 		for d := range messages {
 			dec := gob.NewDecoder(bytes.NewReader(d.Body))
-			var p Payload
-			err = dec.Decode(&p)
+			var j Job
+			err = dec.Decode(&j)
 			if err != nil {
 				log.Fatal("decode:", err)
 			}
-			log.Printf(" [>>] Received: %s\n", p.Id)
-			requests <- p
+			log.Printf(" [>>] Received segment check: %s\n", j.Id)
+			jobs <- j
+			log.Printf("[<-] waiting for %s\n", j.Id)
+			<-jobDone
+			log.Printf("[->] completed %s\n ", j.Id)
 			d.Ack(false)
 		}
 	}()
-
 	<-done
 }
 
-func receiveSegments(streamsToCheck chan Payload) {
+func receiveSegments(streamsToCheck chan Job) {
 	conn, err := amqp.Dial(os.Getenv("RABBITMQ_URL"))
 	failOnError(err, "Failed to connect to RabbitMQ")
 	defer conn.Close()
@@ -67,12 +69,12 @@ func receiveSegments(streamsToCheck chan Payload) {
 	defer ch.Close()
 
 	q, err := ch.QueueDeclare(
-		"segments.response", // name
-		false,               // durable
-		false,               // delete when unused
-		false,               // exclusive
-		false,               // no-wait
-		nil,                 // arguments
+		"q.segments.out", // name
+		true,             // durable
+		false,            // delete when unused
+		false,            // exclusive
+		false,            // no-wait
+		nil,              // arguments
 	)
 	failOnError(err, "Failed to declare a queue")
 
@@ -92,17 +94,16 @@ func receiveSegments(streamsToCheck chan Payload) {
 	go func() {
 		for d := range messages {
 			dec := gob.NewDecoder(bytes.NewReader(d.Body))
-			var p Payload
-			err = dec.Decode(&p)
+			var j Job
+			err = dec.Decode(&j)
 			if err != nil {
 				log.Fatal("decode:", err)
 			}
-			log.Printf("[>>] Received: %s\n", p.Id.String())
+			log.Printf("[>>] Received segments: %s\n", j.Id.String())
 			// check segments and write to database
-			streamsToCheck <- p
+			streamsToCheck <- j
 			d.Ack(false)
 		}
 	}()
-
 	<-done
 }

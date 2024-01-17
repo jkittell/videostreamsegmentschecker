@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-func requestSegments(payloads chan Payload) {
+func requestSegments(requests chan Job) {
 	conn, err := amqp.Dial(os.Getenv("RABBITMQ_URL"))
 	failOnError(err, "Failed to connect to RabbitMQ")
 	defer conn.Close()
@@ -20,21 +20,21 @@ func requestSegments(payloads chan Payload) {
 	defer ch.Close()
 
 	q, err := ch.QueueDeclare(
-		"segments.request", // name
-		false,              // durable
-		false,              // delete when unused
-		false,              // exclusive
-		false,              // no-wait
-		nil,                // arguments
+		"q.segments.in", // name
+		true,            // durable
+		false,           // delete when unused
+		false,           // exclusive
+		false,           // no-wait
+		nil,             // arguments
 	)
 	failOnError(err, "Failed to declare a queue")
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	for payload := range payloads {
+	for req := range requests {
 		var buffer bytes.Buffer
 		encoder := gob.NewEncoder(&buffer)
-		if err := encoder.Encode(payload); err != nil {
+		if err := encoder.Encode(req); err != nil {
 			log.Println(err)
 			continue
 		}
@@ -48,6 +48,6 @@ func requestSegments(payloads chan Payload) {
 				Body:        buffer.Bytes(),
 			})
 		failOnError(err, "Failed to publish a message")
-		log.Printf("[<<] Sent %s\n", payload.Id.String())
+		log.Printf("[<<] Sent segments request %s\n", req.Id.String())
 	}
 }

@@ -12,20 +12,21 @@ func failOnError(err error, msg string) {
 
 func main() {
 	done := make(chan bool)
+	jobDone := make(chan bool)
 
-	requests := make(chan Payload)
-	streamsToCheck := make(chan Payload)
+	jobs := make(chan Job)
+	toCheck := make(chan Job)
 
-	// receive url to check on q.segments.checker.request
-	go receiveStreamToCheck(requests)
+	// receive url to check on q.segments.check.in
+	go receiveStreamToCheck(jobs, jobDone)
 
-	// send request for segments on segments.request
-	go requestSegments(requests)
+	// send request for segments on q.segments.in
+	go requestSegments(jobs)
 
-	// get response for segments on segments.response
-	go receiveSegments(streamsToCheck)
+	// get response for segments on q.segments.out
+	go receiveSegments(toCheck)
 
 	// check segments and store results in postgres
-	go checkSegments(streamsToCheck)
+	go checkSegments(toCheck, jobDone)
 	<-done
 }

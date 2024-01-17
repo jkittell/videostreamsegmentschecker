@@ -23,19 +23,19 @@ func TestCheck(t *testing.T) {
 	defer ch.Close()
 
 	q, err := ch.QueueDeclare(
-		"q.segments.checker.request", // name
-		false,                        // durable
-		false,                        // delete when unused
-		false,                        // exclusive
-		false,                        // no-wait
-		nil,                          // arguments
+		"q.segments.check.in", // name
+		true,                  // durable
+		false,                 // delete when unused
+		false,                 // exclusive
+		false,                 // no-wait
+		nil,                   // arguments
 	)
 	failOnError(err, "Failed to declare a queue")
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	for range time.Tick(time.Second) {
-		payload := Payload{
+		payload := Job{
 			Id:       uuid.New(),
 			URL:      url,
 			Segments: nil,
@@ -56,7 +56,7 @@ func TestCheck(t *testing.T) {
 				Body:        buffer.Bytes(),
 			})
 		failOnError(err, "Failed to publish a message")
-		log.Printf("[<<] Sent %s\n", payload.Id.String())
+		log.Printf("[<<] Sent segment check request: %s\n", payload.Id.String())
 	}
 
 }

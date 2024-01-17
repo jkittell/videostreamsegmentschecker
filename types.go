@@ -4,7 +4,7 @@ import (
 	"github.com/google/uuid"
 )
 
-type Payload struct {
+type Job struct {
 	Id       uuid.UUID
 	URL      string
 	Segments []Segment

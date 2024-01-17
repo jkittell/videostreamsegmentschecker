@@ -12,9 +12,9 @@ import (
 type Result struct {
 	Id            uuid.UUID
 	URL           string
-	TotalSegments int
 	OKSegments    int
-	OKPercent     float32
+	TotalSegments int
+	OKPercent     float64
 	CreatedAt     time.Time
 }
 
@@ -44,21 +44,25 @@ func (r *Result) Params() map[string]any {
 	}
 }
 
-func check(db database.PosgresDB[*Result], stream Payload) {
-	done := make(chan bool)
-	defer close(done)
+func check(db database.PosgresDB[*Result], stream Job, jobDone chan bool) {
 	var total int
 	var ok int
 
 	for _, seg := range stream.Segments {
 		total++
-		resp, err := client.Head(seg.SegmentURL)
-		if err != nil {
-			log.Println(err)
+		resp, _ := client.Head(seg.SegmentURL)
+		if resp != nil {
+			if resp.StatusCode > 200 || resp.StatusCode < 300 {
+				if resp.ContentLength > 0 {
+					ok++
+				}
+			}
 		}
-		if resp.StatusCode > 200 || resp.StatusCode < 300 {
-			ok++
-		}
+	}
+
+	var okPercent float64
+	if total > 0 {
+		okPercent = (float64(ok) / float64(total)) * 100
 	}
 
 	result := Result{
@@ -66,7 +70,7 @@ func check(db database.PosgresDB[*Result], stream Payload) {
 		URL:           stream.URL,
 		TotalSegments: total,
 		OKSegments:    ok,
-		OKPercent:     float32(ok/total) * 100,
+		OKPercent:     okPercent,
 		CreatedAt:     time.Now(),
 	}
 
@@ -75,15 +79,16 @@ func check(db database.PosgresDB[*Result], stream Payload) {
 	if err != nil {
 		log.Println(err)
 	}
+	jobDone <- true
 }
 
-func checkSegments(streamsToCheck chan Payload) {
+func checkSegments(streamsToCheck chan Job, jobDone chan bool) {
 	db, err := database.NewPostgresDB[*Result]("segment_checks", func() *Result {
 		return &Result{}
 	})
 	failOnError(err, "unable to connect to postgres")
 
 	for stream := range streamsToCheck {
-		check(db, stream)
+		check(db, stream, jobDone)
 	}
 }
