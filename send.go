@@ -47,7 +47,7 @@ func requestSegments(requests chan Job) {
 				ContentType: "application/x-gob",
 				Body:        buffer.Bytes(),
 			})
-		failOnError(err, "Failed to publish a message")
-		log.Printf("[<<] Sent segments request %s\n", req.Id.String())
+		log.Printf("[ %s ] publish message error", req.Id)
+		log.Printf("[ %s ] [<<] sent request for segments", req.Id.String())
 	}
 }

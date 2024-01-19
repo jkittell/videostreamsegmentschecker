@@ -77,7 +77,7 @@ func check(db database.PosgresDB[*Result], stream Job, jobDone chan bool) {
 	// write to database
 	_, err := db.Create(context.TODO(), &result)
 	if err != nil {
-		log.Println(err)
+		log.Printf("[ %s ] error creating database entry: %s", err)
 	}
 	jobDone <- true
 }

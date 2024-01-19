@@ -46,13 +46,13 @@ func receiveStreamToCheck(jobs chan Job, jobDone chan bool) {
 			var j Job
 			err = dec.Decode(&j)
 			if err != nil {
-				log.Fatal("decode:", err)
+				log.Printf("decode message error: %s", err)
 			}
-			log.Printf(" [>>] Received segment check: %s\n", j.Id)
+			log.Printf("[ %s ] [>>] received segment check request", j.Id)
 			jobs <- j
-			log.Printf("[<-] waiting for %s\n", j.Id)
+			log.Printf("[ %s ] [<-] waiting for segments", j.Id)
 			<-jobDone
-			log.Printf("[->] completed %s\n ", j.Id)
+			log.Printf("[ %s ] [->] segment check completed", j.Id)
 			d.Ack(false)
 		}
 	}()
@@ -69,12 +69,12 @@ func receiveSegments(streamsToCheck chan Job) {
 	defer ch.Close()
 
 	q, err := ch.QueueDeclare(
-		"q.segments.out", // name
-		true,             // durable
-		false,            // delete when unused
-		false,            // exclusive
-		false,            // no-wait
-		nil,              // arguments
+		"q.content", // name
+		true,        // durable
+		false,       // delete when unused
+		false,       // exclusive
+		false,       // no-wait
+		nil,         // arguments
 	)
 	failOnError(err, "Failed to declare a queue")
 
@@ -97,9 +97,9 @@ func receiveSegments(streamsToCheck chan Job) {
 			var j Job
 			err = dec.Decode(&j)
 			if err != nil {
-				log.Fatal("decode:", err)
+				log.Printf("[ %s ] decode message error: %s", j.Id, err)
 			}
-			log.Printf("[>>] Received segments: %s\n", j.Id.String())
+			log.Printf("[ %s ] [>>] received segments", j.Id)
 			// check segments and write to database
 			streamsToCheck <- j
 			d.Ack(false)
