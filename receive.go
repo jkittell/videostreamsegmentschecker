@@ -17,15 +17,35 @@ func receiveStreamToCheck(jobs chan Job, jobDone chan bool) {
 	failOnError(err, "Failed to open a channel")
 	defer ch.Close()
 
+	err = ch.ExchangeDeclare(
+		"content", // name
+		"fanout",  // type
+		false,     // durable
+		false,     // auto-deleted
+		false,     // internal
+		false,     // no-wait
+		nil,       // arguments
+	)
+	failOnError(err, "Failed to declare an exchange")
+
 	q, err := ch.QueueDeclare(
-		"q.segments.check.in", // name
-		true,                  // durable
-		false,                 // delete when unused
-		false,                 // exclusive
-		false,                 // no-wait
-		nil,                   // arguments
+		"",    // name
+		false, // durable
+		false, // delete when unused
+		false, // exclusive
+		false, // no-wait
+		nil,   // arguments
 	)
 	failOnError(err, "Failed to declare a queue")
+
+	err = ch.QueueBind(
+		q.Name,    // queue name
+		"",        // routing key
+		"content", // exchange
+		false,
+		nil,
+	)
+	failOnError(err, "Failed to bind a queue")
 
 	messages, err := ch.Consume(
 		q.Name, // queue
@@ -69,12 +89,12 @@ func receiveSegments(streamsToCheck chan Job) {
 	defer ch.Close()
 
 	q, err := ch.QueueDeclare(
-		"q.content", // name
-		true,        // durable
-		false,       // delete when unused
-		false,       // exclusive
-		false,       // no-wait
-		nil,         // arguments
+		"q.segments.response", // name
+		false,                 // durable
+		false,                 // delete when unused
+		false,                 // exclusive
+		false,                 // no-wait
+		nil,                   // arguments
 	)
 	failOnError(err, "Failed to declare a queue")
 
