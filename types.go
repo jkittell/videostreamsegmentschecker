@@ -2,12 +2,14 @@ package main
 
 import (
 	"github.com/google/uuid"
+	"time"
 )
 
 type Job struct {
-	Id       uuid.UUID
-	URL      string
-	Segments []Segment
+	Id        uuid.UUID
+	URL       string
+	Segments  []Segment
+	CreatedAt time.Time
 }
 
 type Segment struct {
