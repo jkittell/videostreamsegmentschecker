@@ -1,6 +1,6 @@
 CREATE TABLE segment_checks (
                        id uuid,
-                       url character varying(255),
+                       url varchar,
                        ok_segments int,
                        total_segments int,
                        ok_percent float,

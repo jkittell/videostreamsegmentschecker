@@ -9,7 +9,9 @@ import (
 )
 
 func receiveStreamToCheck(jobs chan Job, jobDone chan bool) {
-	conn, err := amqp.Dial(os.Getenv("RABBITMQ_URL"))
+	url := os.Getenv("RABBITMQ_URL")
+	log.Printf("RABBITMQ_URL: %s", url)
+	conn, err := amqp.Dial(url)
 	failOnError(err, "Failed to connect to RabbitMQ")
 	defer conn.Close()
 
@@ -17,35 +19,22 @@ func receiveStreamToCheck(jobs chan Job, jobDone chan bool) {
 	failOnError(err, "Failed to open a channel")
 	defer ch.Close()
 
-	err = ch.ExchangeDeclare(
-		"content", // name
-		"fanout",  // type
-		false,     // durable
-		false,     // auto-deleted
-		false,     // internal
-		false,     // no-wait
-		nil,       // arguments
-	)
-	failOnError(err, "Failed to declare an exchange")
-
 	q, err := ch.QueueDeclare(
-		"",    // name
-		false, // durable
-		false, // delete when unused
-		false, // exclusive
-		false, // no-wait
-		nil,   // arguments
+		"q.content", // name
+		true,        // durable
+		false,       // delete when unused
+		false,       // exclusive
+		false,       // no-wait
+		nil,         // arguments
 	)
 	failOnError(err, "Failed to declare a queue")
 
-	err = ch.QueueBind(
-		q.Name,    // queue name
-		"",        // routing key
-		"content", // exchange
-		false,
-		nil,
+	err = ch.Qos(
+		1,     // prefetch count
+		0,     // prefetch size
+		false, // global
 	)
-	failOnError(err, "Failed to bind a queue")
+	failOnError(err, "Failed to set QoS")
 
 	messages, err := ch.Consume(
 		q.Name, // queue

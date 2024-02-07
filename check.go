@@ -53,17 +53,17 @@ type SegmentInfo struct {
 	CreatedAt     time.Time `bson:"created_at" json:"created_at"`
 }
 
-type StreamInfo struct {
+type SegmentCheckInfo struct {
 	Id       uuid.UUID     `bson:"_id" json:"id"`
 	URL      string        `bson:"URL" json:"URL"`
 	Segments []SegmentInfo `bson:"segments" json:"segments"`
 }
 
-func check(resultsDB database.PosgresDB[*Result], infoDB database.MongoDB[StreamInfo], stream Job, jobDone chan bool) {
+func check(resultsDB database.PosgresDB[*Result], infoDB database.MongoDB[SegmentCheckInfo], stream Job, jobDone chan bool) {
 	var total int
 	var ok int
 
-	streamInfo := StreamInfo{
+	streamInfo := SegmentCheckInfo{
 		Id:       stream.Id,
 		URL:      stream.URL,
 		Segments: []SegmentInfo{},
@@ -88,7 +88,7 @@ func check(resultsDB database.PosgresDB[*Result], infoDB database.MongoDB[Stream
 		if resp != nil {
 			segmentInfo.StatusCode = resp.StatusCode
 			segmentInfo.ContentLength = resp.ContentLength
-			if resp.StatusCode > 200 || resp.StatusCode < 300 {
+			if resp.StatusCode == 200 {
 				if resp.ContentLength > 0 {
 					ok++
 				}
@@ -125,15 +125,7 @@ func check(resultsDB database.PosgresDB[*Result], infoDB database.MongoDB[Stream
 	jobDone <- true
 }
 
-func checkSegments(streamsToCheck chan Job, jobDone chan bool) {
-	resultsDB, err := database.NewPostgresDB[*Result]("segment_checks", func() *Result {
-		return &Result{}
-	})
-	failOnError(err, "unable to connect to postgres")
-
-	infoDB, err := database.NewMongoDB[StreamInfo]()
-	failOnError(err, "unable to connect to mongo")
-
+func checkSegments(resultsDB database.PosgresDB[*Result], infoDB database.MongoDB[SegmentCheckInfo], streamsToCheck chan Job, jobDone chan bool) {
 	for stream := range streamsToCheck {
 		check(resultsDB, infoDB, stream, jobDone)
 	}
