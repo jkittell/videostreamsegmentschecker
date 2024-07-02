@@ -1,9 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/jkittell/data/database"
 	"log"
+	"os"
 )
 
 func failOnError(err error, msg string) {
@@ -40,7 +42,11 @@ func main() {
 	router := gin.Default()
 	router.GET("/api/:id", HandleSegmentCheckInfo(infoDB))
 	// start an HTTP server without specifying the port
-	err = router.Run(":0")
+	webAPIPort := os.Getenv("WEB_API_PORT")
+	if webAPIPort == "" {
+		webAPIPort = "0"
+	}
+	err = router.Run(fmt.Sprintf(":%s", webAPIPort))
 	if err != nil {
 		log.Fatal(err)
 	}
