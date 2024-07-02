@@ -1,4 +1,4 @@
-docker login
+docker login -u jpkitt 
 
 docker buildx create
 
