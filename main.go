@@ -39,7 +39,8 @@ func main() {
 
 	router := gin.Default()
 	router.GET("/api/:id", HandleSegmentCheckInfo(infoDB))
-	err = router.Run(":8081")
+	// start an HTTP server without specifying the port
+	err = router.Run(":0")
 	if err != nil {
 		log.Fatal(err)
 	}
